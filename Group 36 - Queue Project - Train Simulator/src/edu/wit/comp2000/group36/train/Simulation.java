@@ -42,4 +42,7 @@ public class Simulation {
 			train.simulate(route);
 		}
 	}
+
+	public TrainRoute getRoute() { return route; }
+	public Train[] getTrains() { return trains; }
 }

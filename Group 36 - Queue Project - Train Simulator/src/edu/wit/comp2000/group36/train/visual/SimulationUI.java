@@ -2,6 +2,7 @@ package edu.wit.comp2000.group36.train.visual;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -16,15 +17,14 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
-import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Queue;
-import java.util.Stack;
 
 import javax.swing.JComponent;
 import javax.swing.plaf.PanelUI;
 
 import edu.wit.comp2000.group36.train.Simulation;
+import edu.wit.comp2000.group36.train.Train;
 
 public class SimulationUI extends PanelUI implements ComponentListener {
 	private Simulation simulation;
@@ -33,31 +33,49 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		this.simulation = simulation;
 	}
 	
+	private static final int DELAY = 10;
+	
 	private static final float STEP_SIZE = 3f;
 	private static final float STEP_SIZE_SQ = STEP_SIZE * STEP_SIZE;
 	
-	private Queue<Point2D> pointsInt;
-	private Queue<Point2D> pointsOut;
+	private static final Path2D TRAIN_SHAPE;
+	
+	static {
+		double ANGLE = Math.toRadians(60);
+		double SCALE = 10;
+		
+		double cos = Math.cos(ANGLE) * SCALE;
+		double sin = Math.sin(ANGLE) * SCALE;
+		
+		TRAIN_SHAPE = new GeneralPath();
+		TRAIN_SHAPE.moveTo(   0, -sin);
+		TRAIN_SHAPE.lineTo( cos,  0);
+		TRAIN_SHAPE.lineTo( cos,  2 * SCALE);
+		TRAIN_SHAPE.lineTo(-cos,  2 * SCALE);
+		TRAIN_SHAPE.lineTo(-cos,  0);
+		TRAIN_SHAPE.closePath();
+	}
+	
+	private ArrayList<Point2D> pointsInt;
+	private ArrayList<Point2D> pointsOut;
 	private Path2D pathInt;
 	private Path2D pathOut;
-	
-	private float dxINT, dyINT;
-	private float dxOUT, dyOUT;
-	private float percINT, percOUT;
-	private Point2D pINT, pOUT;
-	private float simulationSpeed = 0.1f;
+
+	private long stepCount, stepLimit;
 	
 	public void installUI(JComponent c) {
 		c.addComponentListener(this);
+	}
+	
+	public void prepSimulation(long milli) {
+		stepLimit = milli / DELAY;
+		stepCount = 0;
 	}
 	
 	public void paint(Graphics g, JComponent c) {
 		if(pathOut == null) componentResized(new ComponentEvent(c, 0));
 		Graphics2D g2d = (Graphics2D) g;
 		
-		int width = c.getWidth();
-		int height = c.getHeight();
-
 		// Draw Tracks
 		g2d.setColor(Color.BLACK);
 		g2d.setStroke(new BasicStroke(3));
@@ -65,51 +83,61 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		g2d.draw(pathOut);
 		g2d.draw(pathInt);
 
-		g2d.setStroke(new BasicStroke(1));
+//		g2d.setStroke(new BasicStroke(1));
 		
-		if(percINT >= 1 || pINT == null) {
-			if(pINT == null) {
-				pINT = pointsInt.poll();
-				pointsInt.add(pINT);
-			}
-			
-			Point2D p0 = pINT;
-			pINT = pointsInt.poll();
-			pointsInt.add(pINT);
-			
-			percINT = 0;
-			
-			dxINT = (float) (pINT.getX() - p0.getX());
-			dyINT = (float) (pINT.getY() - p0.getY());
-		} else {
-			percINT += simulationSpeed;
+		for(Train train : simulation.getTrains()) {
+			g.setColor(Color.RED);
+			drawTrain(g2d, train);
 		}
 		
-		if(percOUT >= 1 || pOUT == null) {
-			if(pOUT == null) {
-				pOUT = pointsOut.poll();
-				pointsOut.add(pOUT);
-			}
-			
-			Point2D p0 = pOUT;
-			pOUT = pointsOut.poll();
-			pointsOut.add(pOUT);
-			
-			percOUT = 0;
-			
-			dxOUT = (float) (pOUT.getX() - p0.getX());
-			dyOUT = (float) (pOUT.getY() - p0.getY());
-		} else {
-			percOUT += simulationSpeed;
+		if(++ stepCount < stepLimit) {
+			try { Thread.sleep(DELAY); } 
+			catch(InterruptedException ignore) { }
+			c.repaint();
 		}
+	}
+	
+	private void drawTrain(Graphics2D g2d, Train train) {
+		double perc = (double) stepCount / Math.max(stepLimit, 1);
+		ArrayList<Point2D> path = train.isInbound() ? pointsInt : pointsOut;
+		
+		int locLength = path.size() / simulation.getRoute().getLength();
+		
+		int p0Index = train.getLocation() * locLength;
+		int p1Index = p0Index + (train.isInbound() ? -1 : 1);
+		
+		p0Index = (p0Index + path.size()) % path.size();
+		p1Index = (p1Index + path.size()) % path.size();
+		
+		Point2D p0 = path.get(p0Index);
+		Point2D p1 = path.get(p1Index);
+		
+		double dx = (p1.getX() - p0.getX()) * perc;
+		double dy = (p1.getY() - p0.getY()) * perc;
 
-		g2d.setColor(Color.RED);
-		Point2D p = new Point2D.Double(pINT.getX() + dxINT * percINT, pINT.getY() + dyINT * percINT);
-		g2d.fillRect((int) p.getX() - 4, (int) p.getY() - 4, 8, 8);
+		Color c = g2d.getColor();
+		g2d.draw(new Line2D.Double(p0.getX(), p0.getY(), dx * 100, dy * 100));
 
-		g2d.setColor(Color.BLUE);
-		p = new Point2D.Double(pOUT.getX() + dxOUT * percOUT, pOUT.getY() + dyOUT * percOUT);
-		g2d.fillRect((int) p.getX() - 4, (int) p.getY() - 4, 8, 8);
+		
+		Point2D p = new Point2D.Double(p0.getX() + dx, p0.getY() + dy);
+		
+		double angle = Math.atan(dy / dx) + Math.PI / 2;
+		
+//		AffineTransform rotate = new AffineTransform(); rotate.rotate(angle);
+//		TRAIN_SHAPE.transform(rotate);
+		
+		g2d.translate(p.getX(), p.getY());
+//		g2d.rotate(angle);
+		g2d.fill(TRAIN_SHAPE);
+//		g2d.rotate(-angle);
+		g2d.translate(-p.getX(), -p.getY());
+		
+
+		g2d.setColor(Color.YELLOW);
+		g2d.draw(new Line2D.Double(p0, p));
+		g2d.setColor(Color.CYAN);
+		g2d.draw(new Line2D.Double(p0, p1));
+		g2d.setColor(c);
 	}
 	
 	private void appendShape(Shape shape, Collection<Point2D> points, AffineTransform transform) {
@@ -147,17 +175,15 @@ public class SimulationUI extends PanelUI implements ComponentListener {
         }
 	}
 	
-	private static <T> void flipQueue(Queue<T> flip) {
-		Stack<T> stack = new Stack<>();
-		while(!flip.isEmpty()) stack.push(flip.poll());
-		while(!stack.isEmpty()) flip.add(stack.pop());
-	}
-	
-	public Dimension getPreferredSize(JComponent c) { return new Dimension(500, 500); }
+//	private static <T> void flipQueue(Queue<T> flip) {
+//		Stack<T> stack = new Stack<>();
+//		while(!flip.isEmpty()) stack.push(flip.poll());
+//		while(!stack.isEmpty()) flip.add(stack.pop());
+//	}
 
 	public void componentResized(ComponentEvent e) {
-		pointsInt = new ArrayDeque<>();
-		pointsOut = new ArrayDeque<>();
+		pointsInt = new ArrayList<>();
+		pointsOut = new ArrayList<>();
 		
 		pathInt = new GeneralPath();
 		pathOut = new GeneralPath();
@@ -198,11 +224,27 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			
 			transform.rotate(Math.PI / 2, width / 2, height / 2);
 		}
-		
-		flipQueue(pointsOut);
 	}
 
 	public void componentMoved(ComponentEvent e) { }
 	public void componentShown(ComponentEvent e) { }
 	public void componentHidden(ComponentEvent e) { }
+	
+	public Dimension getPreferredSize(JComponent p) { 
+		return new Dimension(500, 500);
+//		Dimension base = super.getPreferredSize(p);
+//        Container parent = p.getParent();
+//        
+//        if(parent != null) {
+//            base = parent.getSize();
+//        } else {
+//            return new Dimension(500, 500);
+//        }
+//        
+//        int width = (int) base.getWidth();
+//        int height = (int) base.getHeight();
+//        
+//        int size = width < height ? width : height;
+//        return new Dimension(size, size);
+	}
 }

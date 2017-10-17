@@ -30,7 +30,9 @@ public class SimulationFrame extends JFrame implements ActionListener {
 	private JToggleButton runButton;
 	private JCheckBox pauseCheckBox;
 	private JSlider speedSlider;
-	private JPanel panel;
+	
+	private JPanel simulationPanel;
+	private SimulationUI simulationUI;
 	
 	private boolean pauseSignal;
 	private Object simulationLock = new Object();
@@ -45,8 +47,8 @@ public class SimulationFrame extends JFrame implements ActionListener {
 			
 			step();
 			
-			try { Thread.sleep((long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED)); }
-			catch(InterruptedException ignore) { }
+//			try { Thread.sleep((long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED)); }
+//			catch(InterruptedException ignore) { }
 		}
 		
 	}, "Simulation - Thread");
@@ -99,9 +101,9 @@ public class SimulationFrame extends JFrame implements ActionListener {
 		pauseCheckBox = new JCheckBox("Pause at Station");
 		runPanel.add(pauseCheckBox);
 		
-		panel = new JPanel();
-		panel.setUI(new SimulationUI(simulation));
-		contentPanel.add(panel, BorderLayout.CENTER);
+		simulationPanel = new JPanel();
+		simulationPanel.setUI(simulationUI = new SimulationUI(simulation));
+		contentPanel.add(simulationPanel, BorderLayout.CENTER);
 		
 		runButton.addActionListener(this);
 		stepButton.addActionListener(this);
@@ -114,7 +116,10 @@ public class SimulationFrame extends JFrame implements ActionListener {
 		setVisible(true);
 	}
 
-	private void step() { simulation.step(); panel.repaint(); }
+	private void step() { 
+		simulationUI.prepSimulation((long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED));
+		simulation.step(); 
+		simulationPanel.repaint(); }
 	
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() == stepButton) { 

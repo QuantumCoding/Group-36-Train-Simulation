@@ -23,7 +23,7 @@ public class Train {
 	}
 	
 	public void simulate(TrainRoute route) {
-		System.out.println(this + " : " + onboard);
+//		System.out.println(this + " : " + onboard);
 		location = ++ location % route.getLength();
 		
 		Station station = route.getStationAtLocation(location);
@@ -58,6 +58,7 @@ public class Train {
 		station.trainArrive(this);
 	}
 	
+	public int getLocation() { return location; }
 	public boolean isInbound() { return inbound; }
 	public String toString() { return "Train #" + id; }
 	
