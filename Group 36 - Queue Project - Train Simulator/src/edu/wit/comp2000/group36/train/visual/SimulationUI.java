@@ -8,11 +8,14 @@ import java.awt.Graphics2D;
 import java.awt.Shape;
 import java.awt.event.ComponentEvent;
 import java.awt.event.ComponentListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseMotionListener;
 import java.awt.geom.AffineTransform;
 import java.awt.geom.Arc2D;
 import java.awt.geom.FlatteningPathIterator;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Line2D;
+import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
@@ -20,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 
 import javax.swing.JComponent;
+import javax.swing.JPanel;
 import javax.swing.plaf.PanelUI;
 
 import edu.wit.comp2000.group36.train.Logger;
@@ -27,10 +31,12 @@ import edu.wit.comp2000.group36.train.Simulation;
 import edu.wit.comp2000.group36.train.Station;
 import edu.wit.comp2000.group36.train.Train;
 
-public class SimulationUI extends PanelUI implements ComponentListener {
+public class SimulationUI extends PanelUI implements ComponentListener, MouseMotionListener {
 	private Simulation simulation;
 	private TrainDrawInfo[] trains;
 	private StationDrawInfo[] stations;
+	
+	private float stepMulti;
 	
 	public SimulationUI(Simulation simulation) {
 		this.simulation = simulation;
@@ -44,11 +50,14 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		for(int i = 0; i < stations.length; i ++) {
 			stations[i] = new StationDrawInfo(simulation.getRoute().getStation(i));
 		}
+		
+		stepMulti = (float) simulation.getRoute().getLength() / 100;
+		stepMulti = 1;
 	}
 	
 	private static final int DELAY = 10;
 	
-	private static final float STEP_SIZE = 3f;
+	private static final float STEP_SIZE = .1f;
 	private static final float STEP_SIZE_SQ = STEP_SIZE * STEP_SIZE;
 	
 	private static final Path2D TRAIN_SHAPE;
@@ -74,24 +83,37 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	private Path2D pathInt;
 	private Path2D pathOut;
 	
-	private float trackSpace;
-
-	private long stepCount, stepLimit;
+	private double stepCount, stepLimit;
 	
 	public void installUI(JComponent c) {
 		c.addComponentListener(this);
+		c.addMouseMotionListener(this);
+		
+		c.setLayout(null);
 	}
 	
 	public void prepSimulation(long milli) {
-		System.out.println(stepLimit);
 		stepLimit = milli / DELAY;
 		stepCount = 0;
-		System.out.println(stepLimit);
 	}
 	
 	public void paint(Graphics g, JComponent c) {
 		if(pathOut == null) componentResized(new ComponentEvent(c, 0));
 		Graphics2D g2d = (Graphics2D) g;
+		
+		g2d.setColor(Color.WHITE);
+		g2d.fillRect(0, 0, c.getWidth(), c.getHeight());
+		
+		int size = Math.min(c.getWidth(), c.getHeight());
+		if(c.getWidth() < c.getHeight()) {
+			g2d.translate(0, (c.getHeight() - size) / 2);
+		} else {
+			g2d.translate((c.getWidth() - size) / 2, 0);
+		}
+
+		for(StationDrawInfo stations : stations) {
+			stations.draw(g2d);
+		}
 		
 		// Draw Tracks
 		g2d.setColor(Color.BLACK);
@@ -99,18 +121,12 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		
 		g2d.draw(pathOut);
 		g2d.draw(pathInt);
-
-//		g2d.setStroke(new BasicStroke(1));
 		
 		for(TrainDrawInfo train : trains) {
 			train.draw(g2d);
 		}
 		
-		for(StationDrawInfo stations : stations) {
-			stations.draw(g2d);
-		}
-		
-		if(stepCount ++ < stepLimit) {
+		if((stepCount += stepMulti) < stepLimit + stepMulti) {
 			try { Thread.sleep(DELAY); } 
 			catch(InterruptedException ignore) { }
 			c.repaint();
@@ -125,6 +141,7 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		private Color color;
 
 		private Point2D p0, p1;
+		private Point2D p;
 		
 		private double dx, dy;
 		private double angle;
@@ -141,8 +158,8 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		public void draw(Graphics2D g2d) {
 			if(train.getLocation() != calcLocation) recalculate();
 
-			double perc = (double) stepCount / Math.max(stepLimit, 1);
-			Point2D p = new Point2D.Double(p0.getX() + dx * perc, p0.getY() + dy * perc);
+			double perc = Math.min(stepCount / Math.max(stepLimit, 1), 1);
+			p = new Point2D.Double(p0.getX() + dx * perc, p0.getY() + dy * perc);
 			
 			g2d.setColor(color);
 			
@@ -177,6 +194,15 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			
 			calcLocation = train.getLocation();
 		}
+		
+		public boolean contains(int x, int y) {
+			AffineTransform transform = new AffineTransform();
+			transform.translate(p.getX(), p.getY());
+			transform.rotate(angle);
+			try { transform.invert(); } catch(NoninvertibleTransformException e) { }
+			
+			return TRAIN_SHAPE.getBounds().contains(transform.transform(new Point2D.Float(x, y), null));
+		}
 	}
 	
 	private class StationDrawInfo {
@@ -185,48 +211,47 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		private Station station;
 		private Color color;
 
-//		private Shape shape;
-		private Point2D point;
+		private Shape shape;
 		
 		public StationDrawInfo(Station station) {
 			this.station = station;
-			this.color = Color.getHSBColor(0, 0, Logger.RAND.nextFloat());
+			this.color = Color.getHSBColor(0, 0, Logger.RAND.nextFloat() / 2);
 		}
 		
 		public void draw(Graphics2D g2d) {
-//			if(shape == null) recalculate();
-			if(point == null) recalculate();
+			if(shape == null) recalculate();
 			
 			g2d.setColor(color);
-//			g2d.fill(shape);
-			
-			g2d.fillRect((int) point.getX() - 5, (int) point.getY() - 5, 10, 10);
+			g2d.fill(shape);
 		}
 		
 		private void recalculate() {
-			ArrayList<Point2D> path = pointsInt;
+			GeneralPath path = new GeneralPath();
+			for(int i = -RANGE; i <= RANGE; i ++) {
+				Point2D p = pointsInt.get(getIndexForLocation(station.getLocation() + i, true));
+				
+				if(i == -RANGE) path.moveTo(p.getX(), p.getY());
+				else path.lineTo(p.getX(), p.getY());
+			}
+			
+			for(int i = RANGE; i >= -RANGE; i --) {
+				Point2D p = pointsOut.get(getIndexForLocation(station.getLocation() + i, false));
+				path.lineTo(p.getX(), p.getY());
+			}
+//			path.closePath();
+			shape = path;
+		}
+		
+		private int getIndexForLocation(int location, boolean inbound) {
+			ArrayList<Point2D> path = inbound ? pointsInt : pointsOut;
 			int length = simulation.getRoute().getLength();
 			float locLength = (float) path.size() / length;
 			
-			int p0Index = (int) (station.getLocation() * locLength);
-			int p1Index = p0Index + RANGE;
-			int p2Index = p0Index - RANGE;
-			
-			p0Index = (p0Index + path.size()) % path.size();
-			p1Index = (p1Index + path.size()) % path.size();
-			p2Index = (p2Index + path.size()) % path.size();
-			
-			Point2D p0 = path.get(p0Index);
-			Point2D p1 = path.get(p1Index);
-			Point2D p2 = path.get(p2Index);
-			
-			double dist = p2.distanceSq(p1);
-			double dx = (p2.getX() - p1.getX()) / dist;
-			double dy = (p2.getY() - p1.getY()) / dist;
-			
-			float space = trackSpace / 2;
-			point = new Point2D.Double(p0.getX() - dy * space, p0.getY() + dx * space);
-			System.out.println(point);
+			return ((int) (location * locLength) + path.size()) % path.size();
+		}
+		
+		public boolean contains(int x, int y) {
+			return shape.contains(x, y);
 		}
 	}
 	
@@ -278,20 +303,17 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		pathInt = new GeneralPath();
 		pathOut = new GeneralPath();
 		
-		int width = e.getComponent().getWidth();
-		int height = e.getComponent().getHeight();
+		int size = Math.min(e.getComponent().getWidth(), e.getComponent().getHeight());
 		
-		float outerLength = width * 7f / 8;					// 3/4
-		float outerArc = outerLength * 1f / 16;
-		float outerCorner = (width - outerLength) / 2;
+		float outerLength = size * 7f / 8;					// 3/4
+		float outerArc = outerLength * 2f / 16;
+		float outerCorner = (size - outerLength) / 2;
 		outerLength -= outerArc * 2;
 		
-		float innerLength = width * 4f / 8;					// 5/8
-		float innerArc = innerLength * 1f / 16;
-		float innerCorner = (width - innerLength) / 2;
+		float innerLength = size * 4f / 8;					// 5/8
+		float innerArc = innerLength * 2f / 16;
+		float innerCorner = (size - innerLength) / 2;
 		innerLength -= innerArc * 2;
-		
-		trackSpace = innerCorner - outerCorner;
 		
 		Arc2D outArc = new Arc2D.Float(outerCorner, outerCorner, outerArc * 2, outerArc * 2, 180, -90, Arc2D.OPEN);
 		Line2D outLine = new Line2D.Float(outerCorner + outerArc, outerCorner, outerLength + outerCorner + outerArc, outerCorner);
@@ -314,29 +336,77 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			pathInt.append(intArc.getPathIterator(transform), true);
 			pathInt.append(intLine.getPathIterator(transform), true);
 			
-			transform.rotate(Math.PI / 2, width / 2, height / 2);
+			transform.rotate(Math.PI / 2, size / 2, size / 2);
+		}
+		
+		for(StationDrawInfo stations : stations) {
+			stations.recalculate();
 		}
 	}
 
+	private Object infoObj;
+	private JPanel info;
+	
+	public void mouseMoved(MouseEvent e) {
+		System.out.println(infoObj);
+		
+		for(StationDrawInfo station : stations) {
+			if(station.contains(e.getX(), e.getY())) {
+				if(infoObj == station) {
+					info.setLocation(e.getX(), e.getY());
+					e.getComponent().repaint();
+					return;
+				
+				} else {
+					if(info != null) ((JPanel) e.getComponent()).remove(info);
+					
+					infoObj = station;
+					info = new JPanel();
+					info.setUI(new InfoUI(station.station));
+					info.setSize(info.getPreferredSize());
+					info.setLocation(e.getX(), e.getY());
+					((JPanel) e.getComponent()).add(info);
+
+					e.getComponent().repaint();
+					return;
+				}
+			}
+		}
+		
+		for(TrainDrawInfo train : trains) {
+			if(train.contains(e.getX(), e.getY())) {
+				if(infoObj == train) {
+					info.setLocation(e.getX(), e.getY());
+					e.getComponent().repaint();
+					return;
+				
+				} else {
+					if(info != null) ((JPanel) e.getComponent()).remove(info);
+					
+					infoObj = train;
+					info = new JPanel();
+					info.setUI(new InfoUI(train.train));
+					info.setSize(info.getPreferredSize());
+					info.setLocation(e.getX(), e.getY());
+					((JPanel) e.getComponent()).add(info);
+
+					e.getComponent().repaint();
+					return;
+				}
+			}
+		}
+		
+		if(info != null) ((JPanel) e.getComponent()).remove(info);
+		infoObj = null;
+		info = null;
+		
+		e.getComponent().repaint();
+	}
+
+	public void mouseDragged(MouseEvent e) {}
 	public void componentMoved(ComponentEvent e) { }
 	public void componentShown(ComponentEvent e) { }
 	public void componentHidden(ComponentEvent e) { }
 	
-	public Dimension getPreferredSize(JComponent p) { 
-		return new Dimension(500, 500);
-//		Dimension base = super.getPreferredSize(p);
-//        Container parent = p.getParent();
-//        
-//        if(parent != null) {
-//            base = parent.getSize();
-//        } else {
-//            return new Dimension(500, 500);
-//        }
-//        
-//        int width = (int) base.getWidth();
-//        int height = (int) base.getHeight();
-//        
-//        int size = width < height ? width : height;
-//        return new Dimension(size, size);
-	}
+	public Dimension getPreferredSize(JComponent p) { return new Dimension(500, 500); }
 }
