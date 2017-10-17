@@ -41,6 +41,12 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	private Path2D pathInt;
 	private Path2D pathOut;
 	
+	private float dxINT, dyINT;
+	private float dxOUT, dyOUT;
+	private float percINT, percOUT;
+	private Point2D pINT, pOUT;
+	private float simulationSpeed = 0.1f;
+	
 	public void installUI(JComponent c) {
 		c.addComponentListener(this);
 	}
@@ -52,27 +58,58 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		int width = c.getWidth();
 		int height = c.getHeight();
 
+		// Draw Tracks
 		g2d.setColor(Color.BLACK);
 		g2d.setStroke(new BasicStroke(3));
 		
 		g2d.draw(pathOut);
 		g2d.draw(pathInt);
-		
-		g2d.setColor(Color.RED);
+
 		g2d.setStroke(new BasicStroke(1));
 		
-		Point2D p = pointsInt.poll();
-		pointsInt.add(p);
+		if(percINT >= 1 || pINT == null) {
+			if(pINT == null) {
+				pINT = pointsInt.poll();
+				pointsInt.add(pINT);
+			}
+			
+			Point2D p0 = pINT;
+			pINT = pointsInt.poll();
+			pointsInt.add(pINT);
+			
+			percINT = 0;
+			
+			dxINT = (float) (pINT.getX() - p0.getX());
+			dyINT = (float) (pINT.getY() - p0.getY());
+		} else {
+			percINT += simulationSpeed;
+		}
+		
+		if(percOUT >= 1 || pOUT == null) {
+			if(pOUT == null) {
+				pOUT = pointsOut.poll();
+				pointsOut.add(pOUT);
+			}
+			
+			Point2D p0 = pOUT;
+			pOUT = pointsOut.poll();
+			pointsOut.add(pOUT);
+			
+			percOUT = 0;
+			
+			dxOUT = (float) (pOUT.getX() - p0.getX());
+			dyOUT = (float) (pOUT.getY() - p0.getY());
+		} else {
+			percOUT += simulationSpeed;
+		}
+
+		g2d.setColor(Color.RED);
+		Point2D p = new Point2D.Double(pINT.getX() + dxINT * percINT, pINT.getY() + dyINT * percINT);
 		g2d.fillRect((int) p.getX() - 4, (int) p.getY() - 4, 8, 8);
 
 		g2d.setColor(Color.BLUE);
-		
-		p = pointsOut.poll();
-		pointsOut.add(p);
+		p = new Point2D.Double(pOUT.getX() + dxOUT * percOUT, pOUT.getY() + dyOUT * percOUT);
 		g2d.fillRect((int) p.getX() - 4, (int) p.getY() - 4, 8, 8);
-		
-		try { Thread.sleep(10); } catch(InterruptedException e) { }
-		c.repaint();
 	}
 	
 	private void appendShape(Shape shape, Collection<Point2D> points, AffineTransform transform) {
