@@ -2,7 +2,6 @@ package edu.wit.comp2000.group36.train.visual;
 
 import java.awt.BasicStroke;
 import java.awt.Color;
-import java.awt.Container;
 import java.awt.Dimension;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -23,14 +22,28 @@ import java.util.Collection;
 import javax.swing.JComponent;
 import javax.swing.plaf.PanelUI;
 
+import edu.wit.comp2000.group36.train.Logger;
 import edu.wit.comp2000.group36.train.Simulation;
+import edu.wit.comp2000.group36.train.Station;
 import edu.wit.comp2000.group36.train.Train;
 
 public class SimulationUI extends PanelUI implements ComponentListener {
 	private Simulation simulation;
+	private TrainDrawInfo[] trains;
+	private StationDrawInfo[] stations;
 	
 	public SimulationUI(Simulation simulation) {
 		this.simulation = simulation;
+		this.trains = new TrainDrawInfo[simulation.getTrains().length];
+		this.stations = new StationDrawInfo[simulation.getRoute().getStationCount()];
+		
+		for(int i = 0; i < trains.length; i ++) {
+			trains[i] = new TrainDrawInfo(simulation.getTrains()[i]);
+		}
+		
+		for(int i = 0; i < stations.length; i ++) {
+			stations[i] = new StationDrawInfo(simulation.getRoute().getStation(i));
+		}
 	}
 	
 	private static final int DELAY = 10;
@@ -60,6 +73,8 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	private ArrayList<Point2D> pointsOut;
 	private Path2D pathInt;
 	private Path2D pathOut;
+	
+	private float trackSpace;
 
 	private long stepCount, stepLimit;
 	
@@ -68,8 +83,10 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	}
 	
 	public void prepSimulation(long milli) {
+		System.out.println(stepLimit);
 		stepLimit = milli / DELAY;
 		stepCount = 0;
+		System.out.println(stepLimit);
 	}
 	
 	public void paint(Graphics g, JComponent c) {
@@ -85,59 +102,132 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 
 //		g2d.setStroke(new BasicStroke(1));
 		
-		for(Train train : simulation.getTrains()) {
-			g.setColor(Color.RED);
-			drawTrain(g2d, train);
+		for(TrainDrawInfo train : trains) {
+			train.draw(g2d);
 		}
 		
-		if(++ stepCount < stepLimit) {
+		for(StationDrawInfo stations : stations) {
+			stations.draw(g2d);
+		}
+		
+		if(stepCount ++ < stepLimit) {
 			try { Thread.sleep(DELAY); } 
 			catch(InterruptedException ignore) { }
 			c.repaint();
+			return;
+		}
+		
+		synchronized(this) { this.notifyAll(); }
+	}
+	
+	private class TrainDrawInfo {
+		private Train train;
+		private Color color;
+
+		private Point2D p0, p1;
+		
+		private double dx, dy;
+		private double angle;
+
+		private int calcLocation;
+		
+		public TrainDrawInfo(Train train) {
+			this.train = train;
+			this.color = Color.getHSBColor(Logger.RAND.nextFloat(), 1, 1);
+			
+			this.calcLocation = -1;
+		}
+		
+		public void draw(Graphics2D g2d) {
+			if(train.getLocation() != calcLocation) recalculate();
+
+			double perc = (double) stepCount / Math.max(stepLimit, 1);
+			Point2D p = new Point2D.Double(p0.getX() + dx * perc, p0.getY() + dy * perc);
+			
+			g2d.setColor(color);
+			
+			g2d.translate(p.getX(), p.getY());
+			g2d.rotate(angle);
+			g2d.fill(TRAIN_SHAPE);
+			g2d.rotate(-angle);
+			g2d.translate(-p.getX(), -p.getY());
+		}
+		
+		private void recalculate() {
+			ArrayList<Point2D> path = train.isInbound() ? pointsInt : pointsOut;
+			
+			int length = simulation.getRoute().getLength();
+			float locLength = (float) path.size() / length;
+			
+			int nextLoc = (train.getLocation() + (train.isInbound() ? -1 : 1) + length) % length;
+			
+			int p0Index = (int) (train.getLocation() * locLength);
+			int p1Index = (int) (nextLoc * locLength);
+			
+			p0Index = (p0Index + path.size()) % path.size();
+			p1Index = (p1Index + path.size()) % path.size();
+			
+			p0 = path.get(p0Index);
+			p1 = path.get(p1Index);
+			
+			dx = p1.getX() - p0.getX();
+			dy = p1.getY() - p0.getY();
+			
+			angle = Math.atan2(p1.getY() - p0.getY(), p1.getX() - p0.getX()) + Math.PI / 2;
+			
+			calcLocation = train.getLocation();
 		}
 	}
 	
-	private void drawTrain(Graphics2D g2d, Train train) {
-		double perc = (double) stepCount / Math.max(stepLimit, 1);
-		ArrayList<Point2D> path = train.isInbound() ? pointsInt : pointsOut;
+	private class StationDrawInfo {
+		private static final int RANGE = 3;
 		
-		int locLength = path.size() / simulation.getRoute().getLength();
-		
-		int p0Index = train.getLocation() * locLength;
-		int p1Index = p0Index + (train.isInbound() ? -1 : 1);
-		
-		p0Index = (p0Index + path.size()) % path.size();
-		p1Index = (p1Index + path.size()) % path.size();
-		
-		Point2D p0 = path.get(p0Index);
-		Point2D p1 = path.get(p1Index);
-		
-		double dx = (p1.getX() - p0.getX()) * perc;
-		double dy = (p1.getY() - p0.getY()) * perc;
+		private Station station;
+		private Color color;
 
-		Color c = g2d.getColor();
-		g2d.draw(new Line2D.Double(p0.getX(), p0.getY(), dx * 100, dy * 100));
-
+//		private Shape shape;
+		private Point2D point;
 		
-		Point2D p = new Point2D.Double(p0.getX() + dx, p0.getY() + dy);
+		public StationDrawInfo(Station station) {
+			this.station = station;
+			this.color = Color.getHSBColor(0, 0, Logger.RAND.nextFloat());
+		}
 		
-		double angle = Math.atan(dy / dx) + Math.PI / 2;
+		public void draw(Graphics2D g2d) {
+//			if(shape == null) recalculate();
+			if(point == null) recalculate();
+			
+			g2d.setColor(color);
+//			g2d.fill(shape);
+			
+			g2d.fillRect((int) point.getX() - 5, (int) point.getY() - 5, 10, 10);
+		}
 		
-//		AffineTransform rotate = new AffineTransform(); rotate.rotate(angle);
-//		TRAIN_SHAPE.transform(rotate);
-		
-		g2d.translate(p.getX(), p.getY());
-//		g2d.rotate(angle);
-		g2d.fill(TRAIN_SHAPE);
-//		g2d.rotate(-angle);
-		g2d.translate(-p.getX(), -p.getY());
-		
-
-		g2d.setColor(Color.YELLOW);
-		g2d.draw(new Line2D.Double(p0, p));
-		g2d.setColor(Color.CYAN);
-		g2d.draw(new Line2D.Double(p0, p1));
-		g2d.setColor(c);
+		private void recalculate() {
+			ArrayList<Point2D> path = pointsInt;
+			int length = simulation.getRoute().getLength();
+			float locLength = (float) path.size() / length;
+			
+			int p0Index = (int) (station.getLocation() * locLength);
+			int p1Index = p0Index + RANGE;
+			int p2Index = p0Index - RANGE;
+			
+			p0Index = (p0Index + path.size()) % path.size();
+			p1Index = (p1Index + path.size()) % path.size();
+			p2Index = (p2Index + path.size()) % path.size();
+			
+			Point2D p0 = path.get(p0Index);
+			Point2D p1 = path.get(p1Index);
+			Point2D p2 = path.get(p2Index);
+			
+			double dist = p2.distanceSq(p1);
+			double dx = (p2.getX() - p1.getX()) / dist;
+			double dy = (p2.getY() - p1.getY()) / dist;
+			
+			float space = trackSpace / 2;
+			point = new Point2D.Double(p0.getX() - dy * space, p0.getY() + dx * space);
+			System.out.println(point);
+		}
 	}
 	
 	private void appendShape(Shape shape, Collection<Point2D> points, AffineTransform transform) {
@@ -191,15 +281,17 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		int width = e.getComponent().getWidth();
 		int height = e.getComponent().getHeight();
 		
-		float outerLength = width * 3f / 4;
+		float outerLength = width * 7f / 8;					// 3/4
 		float outerArc = outerLength * 1f / 16;
 		float outerCorner = (width - outerLength) / 2;
 		outerLength -= outerArc * 2;
 		
-		float innerLength = width * 5f / 8;
+		float innerLength = width * 4f / 8;					// 5/8
 		float innerArc = innerLength * 1f / 16;
 		float innerCorner = (width - innerLength) / 2;
 		innerLength -= innerArc * 2;
+		
+		trackSpace = innerCorner - outerCorner;
 		
 		Arc2D outArc = new Arc2D.Float(outerCorner, outerCorner, outerArc * 2, outerArc * 2, 180, -90, Arc2D.OPEN);
 		Line2D outLine = new Line2D.Float(outerCorner + outerArc, outerCorner, outerLength + outerCorner + outerArc, outerCorner);

@@ -22,7 +22,7 @@ public class SimulationFrame extends JFrame implements ActionListener {
 	private static final long serialVersionUID = -4489738892518264663L;
 	public static void main(String[] args) { new SimulationFrame(); }
 	
-	private static final int MIN_SIMULATION_SPEED = 1000;
+	private static final int MIN_SIMULATION_SPEED = 250;
 	private static final int MAX_SIMULATION_SPEED = 10;
 	private static final int SIMULATION_SPEED_RANGE = MIN_SIMULATION_SPEED - MAX_SIMULATION_SPEED;
 	
@@ -47,8 +47,10 @@ public class SimulationFrame extends JFrame implements ActionListener {
 			
 			step();
 			
-//			try { Thread.sleep((long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED)); }
-//			catch(InterruptedException ignore) { }
+			synchronized(simulationUI) {
+				try { simulationUI.wait(); } 
+				catch(InterruptedException ignore) { }	
+			}
 		}
 		
 	}, "Simulation - Thread");
@@ -85,6 +87,7 @@ public class SimulationFrame extends JFrame implements ActionListener {
 		buttonPanel.add(topSeparator, BorderLayout.NORTH);
 		
 		speedSlider = new JSlider();
+		speedSlider.setFocusable(false);
 		buttonPanel.add(speedSlider, BorderLayout.CENTER);
 		speedSlider.setMinorTickSpacing(5);
 		speedSlider.setMajorTickSpacing(10);
@@ -117,9 +120,12 @@ public class SimulationFrame extends JFrame implements ActionListener {
 	}
 
 	private void step() { 
-		simulationUI.prepSimulation((long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED));
-		simulation.step(); 
-		simulationPanel.repaint(); }
+		long delay = (long) ((1 - speedSlider.getValue() / 100d) * SIMULATION_SPEED_RANGE + MAX_SIMULATION_SPEED);
+		
+		simulation.step();
+		simulationUI.prepSimulation(delay);
+		simulationPanel.repaint(); 
+	}
 	
 	public void actionPerformed(ActionEvent e) {
 		if(e.getSource() == stepButton) { 

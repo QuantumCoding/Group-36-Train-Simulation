@@ -24,7 +24,7 @@ public class Train {
 	
 	public void simulate(TrainRoute route) {
 //		System.out.println(this + " : " + onboard);
-		location = ++ location % route.getLength();
+		location = ((inbound ? -- location : ++ location) + route.getLength()) % route.getLength();
 		
 		Station station = route.getStationAtLocation(location);
 		if(station == null) return;
