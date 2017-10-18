@@ -1,13 +1,13 @@
 package edu.wit.comp2000.group36.train.visual.ui;
 
+import java.awt.Point;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.event.MouseMotionListener;
 
 import javax.swing.JPanel;
 
-import edu.wit.comp2000.group36.train.visual.InfoUI;
-import edu.wit.comp2000.group36.train.visual.InfoUI.Descriptable;
+import edu.wit.comp2000.group36.train.visual.ui.InfoPanel.Descriptable;
 import edu.wit.comp2000.group36.train.visual.ui.SimulationUIComponents.StationDrawInfo;
 import edu.wit.comp2000.group36.train.visual.ui.SimulationUIComponents.TrainDrawInfo;
 
@@ -15,40 +15,42 @@ public class SimulationUI_InfoManager implements MouseMotionListener, MouseListe
 	private SimulationUI ui;
 	
 	private Object infoObj;
-	private JPanel info;
+	protected InfoPanel info;
 	
 	public SimulationUI_InfoManager(SimulationUI ui) {
 		this.ui = ui;
 	}
 	
+	private Point convert(Point p) {
+		return new Point((int)((p.x - ui.shiftX) / (float) ui.scale * 500), (int)((p.y - ui.shiftY) / (float) ui.scale * 500));
+	} 
+	
 	public void mouseMoved(MouseEvent e) {
 		JPanel panel = ((JPanel) e.getComponent());
-		Descriptable select = getSelectedDescriptable(e.getX(), e.getY());
+		Point p = convert(e.getPoint());
+		
+		Descriptable select = getSelectedDescriptable(p.x, p.y);
 		
 		if(select != null && select == infoObj) {
 			if(info == null) return;
-			info.setLocation(e.getX(), e.getY());
+			info.setLocation(p.x, p.y);
 			panel.repaint();
 			return;
 		}
 
 		if(select != null) {
-			if(info != null) panel.remove(info);
+			info = null;
 			if(select.getInfoPanel() != null) return;
 			
 			infoObj = select;
-			info = new JPanel();
-			info.setUI(new InfoUI(select));
-			info.setLocation(e.getX(), e.getY());
-			info.setSize(info.getPreferredSize());
-			panel.add(info);
-			panel.setComponentZOrder(info, 0);
+			info = new InfoPanel(select);
+			info.setLocation(p.x, p.y);
+			
 			panel.repaint();
 			return;
 		}
 		
 		if(info != null) {
-			panel.remove(info);
 			infoObj = null;
 			info = null;
 			
@@ -58,14 +60,16 @@ public class SimulationUI_InfoManager implements MouseMotionListener, MouseListe
 	
 	public void mouseClicked(MouseEvent e) {
 		JPanel panel = ((JPanel) e.getComponent());
-		Descriptable select = getSelectedDescriptable(e.getX(), e.getY());
+		Point p = convert(e.getPoint());
+		
+		Descriptable select = getSelectedDescriptable(p.x, p.y);
 		
 		if(e.getButton() == MouseEvent.BUTTON1) {
 			if(select != null && select == infoObj) {
-				info.setLocation(e.getX(), e.getY());
+				info.setLocation(p.x, p.y);
+				select.setInfoPanel(info);
 				panel.repaint();
 				
-				select.setInfoPanel(info);
 				infoObj = null;
 				info = null;
 				return;
@@ -74,10 +78,8 @@ public class SimulationUI_InfoManager implements MouseMotionListener, MouseListe
 		
 		if(e.getButton() == MouseEvent.BUTTON3) {
 			if(select != null && select.getInfoPanel() != null) {
-				JPanel infoPanel = select.getInfoPanel();
-				panel.remove(infoPanel);
-				panel.repaint();
 				select.setInfoPanel(null);
+				mouseMoved(e);
 				return;
 			} 
 		}

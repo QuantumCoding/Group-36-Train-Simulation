@@ -14,12 +14,11 @@ import java.awt.geom.Rectangle2D;
 import java.util.ArrayList;
 
 import javax.swing.ImageIcon;
-import javax.swing.JPanel;
 
 import edu.wit.comp2000.group36.train.Logger;
 import edu.wit.comp2000.group36.train.Station;
 import edu.wit.comp2000.group36.train.Train;
-import edu.wit.comp2000.group36.train.visual.InfoUI.Descriptable;
+import edu.wit.comp2000.group36.train.visual.ui.InfoPanel.Descriptable;
 
 public class SimulationUIComponents {
 	static class TrainDrawInfo implements Descriptable {
@@ -42,7 +41,7 @@ public class SimulationUIComponents {
 		}
 		
 		private SimulationUI ui;
-		private JPanel infoPanel;
+		private InfoPanel infoPanel;
 		private double accDX, accDY;
 		
 		private Train train;
@@ -106,6 +105,10 @@ public class SimulationUIComponents {
 			lastOnboard = onboard;
 		}
 		
+		public void drawInfo(Graphics2D g2d) {
+			if(infoPanel != null) infoPanel.paint(g2d);
+		}
+		
 		private void recalculate() {
 			ArrayList<Point2D> path = train.isInbound() ? ui.pointsInt : ui.pointsOut;
 			
@@ -149,15 +152,15 @@ public class SimulationUIComponents {
 			};
 		}
 
-		public JPanel getInfoPanel() { return infoPanel; }
-		public void setInfoPanel(JPanel panel) { this.infoPanel = panel; }
+		public InfoPanel getInfoPanel() { return infoPanel; }
+		public void setInfoPanel(InfoPanel panel) { this.infoPanel = panel; }
 	}
 	
 	static class StationDrawInfo implements Descriptable {
 		private static final int RANGE = 3;
 		
 		private SimulationUI ui;
-		private JPanel infoPanel;
+		private InfoPanel infoPanel;
 		
 		private int lastWaitingCount;
 		private Station station;
@@ -186,6 +189,10 @@ public class SimulationUIComponents {
 			}
 			
 			lastWaitingCount = waitingCount;
+		}
+		
+		public void drawInfo(Graphics2D g2d) {
+			if(infoPanel != null) infoPanel.paint(g2d);
 		}
 		
 		public void recalculate() {
@@ -226,8 +233,8 @@ public class SimulationUIComponents {
 			};
 		}
 
-		public JPanel getInfoPanel() { return infoPanel; }
-		public void setInfoPanel(JPanel panel) { this.infoPanel = panel; }
+		public InfoPanel getInfoPanel() { return infoPanel; }
+		public void setInfoPanel(InfoPanel panel) { this.infoPanel = panel; }
 	}
 	
 	static class Particle {
@@ -278,6 +285,8 @@ public class SimulationUIComponents {
 			
 			g2d.drawImage(type == ParticleType.Happy ? OFF : 
 				type == ParticleType.Add ? ADD : REM, (int) x - 8, (int) y - 8, null);
+
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
 		}
 		
 		public void simulate() {

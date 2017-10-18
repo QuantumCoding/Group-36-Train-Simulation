@@ -16,6 +16,7 @@ import java.awt.geom.Line2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.PathIterator;
 import java.awt.geom.Point2D;
+import java.awt.image.BufferedImage;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -35,8 +36,9 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	protected StationDrawInfo[] stations;
 	
 	protected Queue<Particle> particles;
+	private SimulationUI_InfoManager info;
 	
-	private float stepMulti;
+	private BufferedImage image;
 	
 	public SimulationUI(Simulation simulation) {
 		this.simulation = simulation;
@@ -55,6 +57,8 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		
 		stepMulti = (float) simulation.getRoute().getLength() / 100;
 		stepMulti = 1;
+		
+		image = new BufferedImage(500, 500, BufferedImage.TYPE_INT_ARGB);
 	}
 	
 	private static final int DELAY = 10;
@@ -68,11 +72,14 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	private Path2D pathOut;
 	
 	protected double stepCount, stepLimit;
+	private float stepMulti;
+	
+	protected int scale, shiftX, shiftY;
 	
 	public void installUI(JComponent c) {
-		c.addComponentListener(this);
+//		c.addComponentListener(this);
 		
-		SimulationUI_InfoManager info = new SimulationUI_InfoManager(this);
+		info = new SimulationUI_InfoManager(this);
 		c.addMouseMotionListener(info);
 		c.addMouseListener(info);
 		
@@ -88,17 +95,17 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	
 	public void paint(Graphics g, JComponent c) {
 		if(pathOut == null) componentResized(new ComponentEvent(c, 0));
-		Graphics2D g2d = (Graphics2D) g;
+		Graphics2D g2d = image.createGraphics();
 		
 		g2d.setColor(Color.WHITE);
 		g2d.fillRect(0, 0, c.getWidth(), c.getHeight());
 		
-		int size = Math.min(c.getWidth(), c.getHeight());
-		if(c.getWidth() < c.getHeight()) {
-			g2d.translate(0, (c.getHeight() - size) / 2);
-		} else {
-			g2d.translate((c.getWidth() - size) / 2, 0);
-		}
+//		int size = Math.min(c.getWidth(), c.getHeight());
+//		if(c.getWidth() < c.getHeight()) {
+//			g2d.translate(0, (c.getHeight() - size) / 2);
+//		} else {
+//			g2d.translate((c.getWidth() - size) / 2, 0);
+//		}
 
 		for(StationDrawInfo stations : stations) {
 			stations.draw(g2d);
@@ -110,9 +117,19 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		
 		g2d.draw(pathOut);
 		g2d.draw(pathInt);
+
+		g2d.setStroke(new BasicStroke(1));
 		
 		for(TrainDrawInfo train : trains) {
 			train.draw(g2d);
+		}
+		
+		for(StationDrawInfo stations : stations) {
+			stations.drawInfo(g2d);
+		}
+		
+		for(TrainDrawInfo train : trains) {
+			train.drawInfo(g2d);
 		}
 		
 		boolean simulateParticle = stepCount < stepLimit;
@@ -122,6 +139,22 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			
 			if(simulateParticle) particle.simulate();
 			if(!simulateParticle || !particle.isDead()) particles.add(particle);
+		}
+		
+		if(info.info != null) info.info.paint(g2d);
+		
+		g2d.dispose(); // -------------------------------------------------------------------------------------------
+		
+		scale = Math.min(c.getWidth(), c.getHeight());
+		if(c.getWidth() < c.getHeight()) {
+			shiftY = (c.getHeight() - scale) / 2;
+			shiftX = 0;
+			g.drawImage(image, shiftX, shiftY, scale, scale, null);
+			
+		} else {
+			shiftY = 0;
+			shiftX = (c.getWidth() - scale) / 2;
+			g.drawImage(image, shiftX, shiftY, scale, scale, null);
 		}
 		
 		if((stepCount += stepMulti) < stepLimit + stepMulti) {
