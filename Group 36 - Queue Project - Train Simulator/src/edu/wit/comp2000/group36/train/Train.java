@@ -8,6 +8,7 @@ public class Train {
 	private boolean inbound;
 	
 	private int onboard;
+	private int justBoarded;
 	private final int CAPASITY;
 	private PassengerNode passengerRoot;
 	
@@ -23,7 +24,7 @@ public class Train {
 	}
 	
 	public void simulate(TrainRoute route) {
-//		System.out.println(this + " : " + onboard);
+		justBoarded = 0;
 		location = ((inbound ? -- location : ++ location) + route.getLength()) % route.getLength();
 		
 		Station station = route.getStationAtLocation(location);
@@ -36,6 +37,7 @@ public class Train {
 		if(onboard >= CAPASITY) return false;
 		
 		passengerRoot = new PassengerNode(passenger, passengerRoot);
+		justBoarded ++;
 		onboard ++;
 		return true;
 	}
@@ -49,6 +51,7 @@ public class Train {
 				else prev.next = node.next;
 				
 				node.passenger.disembark(this);
+				onboard --;
 			}
 			
 			prev = node;
@@ -57,6 +60,9 @@ public class Train {
 		
 		station.trainArrive(this);
 	}
+	
+	public int getPassengerCount() { return onboard; }
+	public int getJustBoarded() { return justBoarded; }
 	
 	public int getLocation() { return location; }
 	public boolean isInbound() { return inbound; }

@@ -40,12 +40,14 @@ public class TrainRoute {
 		for(int i = (startIndex + dir + stations.length) % stations.length; ; i = (i + dir + stations.length) % stations.length) {
 			Station check = stations[i];
 			
-			if(check.getLocation() < lastLocation) { // If the next station wrapped around to the front
-				distance += (length - lastLocation) + check.getLocation();
+			int diff = check.getLocation() - lastLocation;
+			if(Math.signum(diff) != dir) { // Wrap to other end of Track
+				distance += Math.min(check.getLocation(), lastLocation);
+				distance += length - Math.max(check.getLocation(), lastLocation);
 			} else {
-				distance += check.getLocation() - lastLocation;
+				distance += Math.abs(diff);
 			}
-					
+			
 			lastLocation = check.getLocation();
 		
 			if(check == end) {

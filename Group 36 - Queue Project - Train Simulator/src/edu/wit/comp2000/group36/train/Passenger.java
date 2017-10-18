@@ -10,11 +10,11 @@ public class Passenger {
 		id = NEXT_ID ++;
 		
 		int count = route.getStationCount();
-		int startindex = Logger.RAND.nextInt(count);
-		int destIndex = (Logger.RAND.nextInt(count - 1) + startindex) % count;
+		int startIndex = Logger.RAND.nextInt(count);
+		int destIndex = (Logger.RAND.nextInt(count - 1) + startIndex) % count;
 	
 		this.dest = route.getStation(destIndex);
-		route.getStation(startindex).routPassenger(this);
+		route.getStation(startIndex).routPassenger(this);
 	}
 	
 	public void disembark(Train train) { }

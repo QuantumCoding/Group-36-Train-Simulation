@@ -17,6 +17,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
 
 import edu.wit.comp2000.group36.train.Simulation;
+import edu.wit.comp2000.group36.train.visual.ui.SimulationUI;
 
 public class SimulationFrame extends JFrame implements ActionListener {
 	private static final long serialVersionUID = -4489738892518264663L;
