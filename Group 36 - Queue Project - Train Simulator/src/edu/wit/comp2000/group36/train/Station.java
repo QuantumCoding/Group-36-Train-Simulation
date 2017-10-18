@@ -40,6 +40,8 @@ public class Station {
 		int inboundDist = route.calcDistance(this, passenger.getDestination(), true);
 		int outboundDist = route.calcDistance(this, passenger.getDestination(), false);
 
+//		if(inboundDist == outboundDist) inboundDist += Logger.RAND.nextInt(2) - 1;
+		
 		if(inboundDist < outboundDist) {
 			inbound.enqueue(passenger);
 			inboundCount ++;

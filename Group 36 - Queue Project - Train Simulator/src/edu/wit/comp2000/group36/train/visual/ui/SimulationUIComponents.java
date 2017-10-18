@@ -98,7 +98,7 @@ public class SimulationUIComponents {
 			if(onboard < lastOnboard) {
 				for(int i = 0, limit = lastOnboard - onboard; i < limit; i ++) {
 					double angle = Math.toRadians(Math.random() * 360);
-					double speed = Math.random() + .5;
+					double speed = (Math.random() + .5) * 10 + 5;
 					ui.addParticle(new Particle(p.getX(), p.getY(), Math.cos(angle) * speed, Math.sin(angle) * speed));
 				}
 			}
@@ -157,7 +157,7 @@ public class SimulationUIComponents {
 	}
 	
 	static class StationDrawInfo implements Descriptable {
-		private static final int RANGE = 3;
+		private static final int RANGE = 5;
 		
 		private SimulationUI ui;
 		private InfoPanel infoPanel;
@@ -247,26 +247,36 @@ public class SimulationUIComponents {
 		private static final Image OFF = new ImageIcon(Particle.class.getResource("off.png")).getImage();
 		
 		private static final float DEVIATION = 60f;		
-		private static final float DEVIATION_SPEED = 2;
+		private static final float DEVIATION_SPEED = 10;
+		private static final float DEVIATION_ROT = (float) Math.PI / 8 * 3;
 		
-		private double x, y;
-		private double dx, dy;
+		private static final float DEVIATION_AGE = 5;
+		
+		private static final float BASE_AGE = 10;
+		
+		private double x, y, r;
+		private double dx, dy, dr;
 		
 		private ParticleType type;
-		private long life;
+		private double age, maxAge;
 		
 		public Particle(double x, double y, double dx, double dy) {
 			this.x = x; 	this.y = y;
 			this.dx = dx; 	this.dy = dy;
 			this.type = ParticleType.Happy;
 			
-			this.life = (long) (100 + (Math.random() - .5) * 25);
+			this.dr = (Math.random() - .5) * DEVIATION_ROT;
+			
+			this.age = (long) (BASE_AGE + (Math.random() - .5) * DEVIATION_AGE);
+			this.maxAge = 3;
+			
+			age /= 2; maxAge /= 2;
 		}
 		
 		public Particle(double x, double y, boolean add) {
 			this.x = x; this.y = y;
 
-			double devSpeed = (Math.random()) * DEVIATION_SPEED + .5f;
+			double devSpeed = Math.random() * DEVIATION_SPEED + 10f;
 			double devAng = Math.toRadians((Math.random() - .5) * DEVIATION + 90);
 			if(add) devAng += Math.PI;
 			
@@ -274,28 +284,35 @@ public class SimulationUIComponents {
 			
 			this.dx = Math.cos(devAng) * devSpeed;
 			this.dy = Math.sin(devAng) * devSpeed;
-		
-			this.life = (long) (100 + (Math.random() - .5) * 25);
+			
+			this.dr = (Math.random() - .5) * DEVIATION_ROT;
+
+			this.age = (long) (BASE_AGE + (Math.random() - .5) * DEVIATION_AGE);
+			this.maxAge = BASE_AGE;
 		}
 		
 		public void draw(Graphics2D g2d) {
 //			g2d.setColor(dy > 0 ? Color.RED : Color.GREEN);
-			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, Math.min(1, life / 100f)));
+			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, (float) Math.min(1, age / maxAge)));
 //			g2d.fillRect((int) x - 5, (int) y - 5, 10, 10);
 			
+			g2d.rotate(r, x - 8, y - 8);
 			g2d.drawImage(type == ParticleType.Happy ? OFF : 
 				type == ParticleType.Add ? ADD : REM, (int) x - 8, (int) y - 8, null);
+			g2d.rotate(-r, x - 8, y - 8);
 
 			g2d.setComposite(AlphaComposite.getInstance(AlphaComposite.SRC_OVER, 1));
 		}
 		
-		public void simulate() {
-			x += dx;
-			y += dy;
+		public void simulate(double delta) {
+			x += dx * delta;
+			y += dy * delta;
 			
-			life --;
+			r += dr * delta;
+			
+			age -= delta;
 		}
 		
-		public boolean isDead() { return life < 0; }
+		public boolean isDead() { return age < 0; }
 	} 
 }

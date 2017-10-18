@@ -11,7 +11,7 @@ public class Passenger {
 		
 		int count = route.getStationCount();
 		int startIndex = Logger.RAND.nextInt(count);
-		int destIndex = (Logger.RAND.nextInt(count - 1) + startIndex) % count;
+		int destIndex = (Logger.RAND.nextInt(count - 1) + 1 + startIndex) % count;
 	
 		this.dest = route.getStation(destIndex);
 		route.getStation(startIndex).routPassenger(this);

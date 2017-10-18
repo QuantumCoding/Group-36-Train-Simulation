@@ -16,7 +16,7 @@ public class Simulation {
 	
 	public Simulation() {
 		int length = 100;
-		int[] stationLocations = new int[8];
+		int[] stationLocations = new int[2];
 		
 		int step = length / stationLocations.length;
 //		int maxStep = step * 3 / 4, minStep = step / 4;
@@ -31,15 +31,15 @@ public class Simulation {
 		route = new TrainRoute(length, stationLocations);
 		
 		trains = new Train[] {
-			new Train(true, 15, 100),
+//			new Train(true, 15, 100),
 			new Train(true, 75, 100),
-			new Train(false, 5, 100),
+//			new Train(false, 5, 100),
 			new Train(false, 50, 100),
 		};
 	}
 	
 	public void step() {
-		if(Logger.RAND.nextDouble() > 0.5f) {
+		if(Logger.RAND.nextDouble() > 0.0f) {
 			new Passenger(route);
 		}
 		

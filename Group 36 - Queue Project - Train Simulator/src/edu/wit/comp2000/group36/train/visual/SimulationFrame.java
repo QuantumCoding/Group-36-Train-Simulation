@@ -17,6 +17,7 @@ import javax.swing.UnsupportedLookAndFeelException;
 import javax.swing.border.EmptyBorder;
 
 import edu.wit.comp2000.group36.train.Simulation;
+import edu.wit.comp2000.group36.train.Train;
 import edu.wit.comp2000.group36.train.visual.ui.SimulationUI;
 
 public class SimulationFrame extends JFrame implements ActionListener {
@@ -39,6 +40,13 @@ public class SimulationFrame extends JFrame implements ActionListener {
 	private Object simulationLock = new Object();
 	private Thread simulationThread = new Thread(() ->  {
 		while(true) {
+			if(Train.atStation() && pauseCheckBox.isSelected()) {
+				Train.atStationReset();
+				
+				runButton.setSelected(false);
+				pauseSignal = true;
+			}
+			
 			while(pauseSignal) { 
 				synchronized(simulationLock) { 
 					try { simulationLock.wait(); } 

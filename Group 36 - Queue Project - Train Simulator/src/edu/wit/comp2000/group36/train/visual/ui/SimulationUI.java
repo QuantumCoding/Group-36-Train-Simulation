@@ -73,6 +73,8 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	
 	protected double stepCount, stepLimit;
 	private float stepMulti;
+	private double lastPerc;
+	private boolean simulating;
 	
 	protected int scale, shiftX, shiftY;
 	
@@ -90,6 +92,7 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 	
 	public void prepSimulation(long milli) {
 		stepLimit = milli / DELAY;
+		simulating = true;
 		stepCount = 0;
 	}
 	
@@ -132,16 +135,27 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			train.drawInfo(g2d);
 		}
 		
-		boolean simulateParticle = stepCount < stepLimit;
+		double perc = Math.min(1, (stepCount) / stepLimit);
+		boolean simulateParticle = perc > 0 && simulating;
 		for(int i = 0, limit = particles.size(); i < limit; i ++) {
 			Particle particle = particles.poll();
 			particle.draw(g2d);
 			
-			if(simulateParticle) particle.simulate();
+			if(simulateParticle) particle.simulate(perc - lastPerc);
 			if(!simulateParticle || !particle.isDead()) particles.add(particle);
 		}
 		
+		lastPerc = perc;
+		
 		if(info.info != null) info.info.paint(g2d);
+		
+		g2d.setColor(Color.RED);
+		for(int i = 0; i < simulation.getRoute().getLength(); i ++) {
+			g2d.draw(new Line2D.Float(
+				pointsOut.get(getIndexForLocation(i, false)),
+				pointsInt.get(getIndexForLocation(i, true))
+			));
+		}
 		
 		g2d.dispose(); // -------------------------------------------------------------------------------------------
 		
@@ -157,14 +171,25 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 			g.drawImage(image, shiftX, shiftY, scale, scale, null);
 		}
 		
+		
 		if((stepCount += stepMulti) < stepLimit + stepMulti) {
 			try { Thread.sleep(DELAY); } 
 			catch(InterruptedException ignore) { }
 			c.repaint();
 			return;
 		}
-		
+
+		lastPerc = 0;
+		simulating = false;
 		synchronized(this) { this.notifyAll(); }
+	}
+	
+	private int getIndexForLocation(int location, boolean inbound) {
+		ArrayList<Point2D> path = inbound ? pointsInt : pointsOut;
+		int length = simulation.getRoute().getLength();
+		float locLength = (float) path.size() / length;
+		
+		return ((int) (location * locLength) + path.size()) % path.size();
 	}
 	
 	private void appendShape(Shape shape, Collection<Point2D> points, AffineTransform transform) {
@@ -212,7 +237,7 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		int size = Math.min(e.getComponent().getWidth(), e.getComponent().getHeight());
 		
 		float outerLength = size * 7f / 8;					// 3/4
-		float outerArc = outerLength * 8f / 16;
+		float outerArc = outerLength * 4f / 16;
 		float outerCorner = (size - outerLength) / 2;
 		outerLength -= outerArc * 2;
 		

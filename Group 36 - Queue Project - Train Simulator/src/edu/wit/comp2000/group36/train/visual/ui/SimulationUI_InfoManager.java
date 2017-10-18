@@ -40,6 +40,7 @@ public class SimulationUI_InfoManager implements MouseMotionListener, MouseListe
 
 		if(select != null) {
 			info = null;
+			infoObj = null;
 			if(select.getInfoPanel() != null) return;
 			
 			infoObj = select;

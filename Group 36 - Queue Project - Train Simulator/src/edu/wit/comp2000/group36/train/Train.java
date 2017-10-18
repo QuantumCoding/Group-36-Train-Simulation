@@ -1,6 +1,11 @@
 package edu.wit.comp2000.group36.train;
 
 public class Train {
+	private static boolean atStation;
+	
+	public static boolean atStation() { return atStation; }
+	public static void atStationReset() { atStation = false; }
+	
 	private static int NEXT_ID = 0;
 	private int id;
 
@@ -29,6 +34,7 @@ public class Train {
 		
 		Station station = route.getStationAtLocation(location);
 		if(station == null) return;
+		atStation = true;
 		
 		arrivedAt(station);
 	}
