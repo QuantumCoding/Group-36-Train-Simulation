@@ -6,7 +6,9 @@ import java.awt.Graphics2D;
 import java.awt.Image;
 import java.awt.Shape;
 import java.awt.geom.AffineTransform;
+import java.awt.geom.Area;
 import java.awt.geom.GeneralPath;
+import java.awt.geom.Line2D;
 import java.awt.geom.NoninvertibleTransformException;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
@@ -177,7 +179,7 @@ public class SimulationUIComponents {
 		public void draw(Graphics2D g2d) {
 			if(shape == null) recalculate();
 			
-			g2d.setColor(color);
+			g2d.setColor(Color.RED);
 			g2d.fill(shape);
 			
 			int waitingCount = station.getInboundWaiting() + station.getOutboundWaiting();
@@ -210,6 +212,54 @@ public class SimulationUIComponents {
 			}
 //			path.closePath();
 			shape = path;
+			
+			Point2D pIn = ui.pointsInt.get(getIndexForLocation(station.getLocation(), true));
+			Point2D pOut = ui.pointsOut.get(getIndexForLocation(station.getLocation(), false));
+			double size = pIn.distance(pOut) / 3;
+			
+			Area a = new Area(recalculateIsland(true, -size));
+			a.add(new Area(recalculateIsland(false, size)));
+			shape = a;
+		}
+		
+		public Shape recalculateIsland(boolean inside, double size) {
+			ArrayList<Point2D> src = inside ? ui.pointsInt : ui.pointsOut;
+			
+			ArrayList<Point2D> points = new ArrayList<>();
+			int count = src.size();
+			
+			for(int i = -RANGE; i <= RANGE; i ++) {
+				int index = getIndexForLocation(station.getLocation() + i, inside);
+				
+				Point2D p0 = src.get((index - 10 + count) % count);
+				Point2D p2 = src.get((index + 10 + count) % count);
+				
+				double length = p0.distance(p2);
+				double dy = ( p2.getX() - p0.getX()) / length;
+				double dx = (-p2.getY() + p0.getY()) / length;
+				
+				Point2D p = src.get(index);
+				points.add(new Point2D.Double(p.getX() - dx * size * 1, p.getY() - dy * size * 1));
+				points.add(new Point2D.Double(p.getX() - dx * size * 3, p.getY() - dy * size * 3));
+			}
+
+			GeneralPath path = new GeneralPath();
+			
+			Point2D start = points.get(0);
+			path.moveTo(start.getX(), start.getY());
+			
+			for(int i = 2; i < points.size(); i += 2) {
+				Point2D p = points.get(i);
+				path.lineTo(p.getX(), p.getY());
+			}
+			
+			for(int i = points.size() - 1; i >= 1; i -= 2) {
+				Point2D p = points.get(i);
+				path.lineTo(p.getX(), p.getY());
+			}
+			
+			path.closePath();
+			return path;
 		}
 		
 		private int getIndexForLocation(int location, boolean inbound) {
@@ -270,7 +320,7 @@ public class SimulationUIComponents {
 			this.age = (long) (BASE_AGE + (Math.random() - .5) * DEVIATION_AGE);
 			this.maxAge = 3;
 			
-			age /= 2; maxAge /= 2;
+			age /= 2; maxAge *= 2;
 		}
 		
 		public Particle(double x, double y, boolean add) {

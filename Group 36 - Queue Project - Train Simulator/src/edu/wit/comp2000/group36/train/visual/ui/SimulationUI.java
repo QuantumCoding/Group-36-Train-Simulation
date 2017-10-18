@@ -149,13 +149,13 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		
 		if(info.info != null) info.info.paint(g2d);
 		
-		g2d.setColor(Color.RED);
-		for(int i = 0; i < simulation.getRoute().getLength(); i ++) {
-			g2d.draw(new Line2D.Float(
-				pointsOut.get(getIndexForLocation(i, false)),
-				pointsInt.get(getIndexForLocation(i, true))
-			));
-		}
+//		g2d.setColor(Color.RED);
+//		for(int i = 0; i < simulation.getRoute().getLength(); i ++) {
+//			g2d.draw(new Line2D.Float(
+//				pointsOut.get(getIndexForLocation(i, false)),
+//				pointsInt.get(getIndexForLocation(i, true))
+//			));
+//		}
 		
 		g2d.dispose(); // -------------------------------------------------------------------------------------------
 		
@@ -241,7 +241,7 @@ public class SimulationUI extends PanelUI implements ComponentListener {
 		float outerCorner = (size - outerLength) / 2;
 		outerLength -= outerArc * 2;
 		
-		float innerLength = size * 4f / 8;					// 5/8
+		float innerLength = size * 13f / 16;					// 5/8
 		float innerArc = innerLength * 4f / 16;
 		float innerCorner = (size - innerLength) / 2;
 		innerLength -= innerArc * 2;
