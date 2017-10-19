@@ -179,7 +179,7 @@ public class SimulationUIComponents {
 		public void draw(Graphics2D g2d) {
 			if(shape == null) recalculate();
 			
-			g2d.setColor(Color.RED);
+			g2d.setColor(new Color(175, 140, 100));
 			g2d.fill(shape);
 			
 			int waitingCount = station.getInboundWaiting() + station.getOutboundWaiting();
@@ -198,24 +198,24 @@ public class SimulationUIComponents {
 		}
 		
 		public void recalculate() {
-			GeneralPath path = new GeneralPath();
-			for(int i = -RANGE; i <= RANGE; i ++) {
-				Point2D p = ui.pointsInt.get(getIndexForLocation(station.getLocation() + i, true));
-				
-				if(i == -RANGE) path.moveTo(p.getX(), p.getY());
-				else path.lineTo(p.getX(), p.getY());
-			}
+//			GeneralPath path = new GeneralPath();
+//			for(int i = -RANGE; i <= RANGE; i ++) {
+//				Point2D p = ui.pointsInt.get(getIndexForLocation(station.getLocation() + i, true));
+//				
+//				if(i == -RANGE) path.moveTo(p.getX(), p.getY());
+//				else path.lineTo(p.getX(), p.getY());
+//			}
+//			
+//			for(int i = RANGE; i >= -RANGE; i --) {
+//				Point2D p = ui.pointsOut.get(getIndexForLocation(station.getLocation() + i, false));
+//				path.lineTo(p.getX(), p.getY());
+//			}
+////			path.closePath();
+//			shape = path;
 			
-			for(int i = RANGE; i >= -RANGE; i --) {
-				Point2D p = ui.pointsOut.get(getIndexForLocation(station.getLocation() + i, false));
-				path.lineTo(p.getX(), p.getY());
-			}
-//			path.closePath();
-			shape = path;
-			
-			Point2D pIn = ui.pointsInt.get(getIndexForLocation(station.getLocation(), true));
-			Point2D pOut = ui.pointsOut.get(getIndexForLocation(station.getLocation(), false));
-			double size = pIn.distance(pOut) / 3;
+//			Point2D pIn = ui.pointsInt.get(getIndexForLocation(station.getLocation(), true));
+//			Point2D pOut = ui.pointsOut.get(getIndexForLocation(station.getLocation(), false));
+			double size = 15 / 3;//pIn.distance(pOut) / 3;
 			
 			Area a = new Area(recalculateIsland(true, -size));
 			a.add(new Area(recalculateIsland(false, size)));

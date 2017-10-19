@@ -1,5 +1,8 @@
 package edu.wit.comp2000.group36.train;
 
+import java.util.Iterator;
+import java.util.LinkedList;
+
 public class Train {
 	private static boolean atStation;
 	
@@ -12,10 +15,9 @@ public class Train {
 	private int location;
 	private boolean inbound;
 	
-	private int onboard;
 	private int justBoarded;
 	private final int CAPASITY;
-	private PassengerNode passengerRoot;
+	private LinkedList<Passenger> passenegers;
 	
 	public Train(boolean isInbound, int startLocation, int capasity) {
 		this.id = NEXT_ID ++;
@@ -23,9 +25,8 @@ public class Train {
 		this.inbound = isInbound;
 		this.location = startLocation;
 		
-		this.onboard = 0;
 		this.CAPASITY = capasity;
-		this.passengerRoot = null;
+		this.passenegers = new LinkedList<>();
 	}
 	
 	public void simulate(TrainRoute route) {
@@ -40,47 +41,29 @@ public class Train {
 	}
 
 	public boolean passengerBoard(Passenger passenger) {
-		if(onboard >= CAPASITY) return false;
+		if(passenegers.size() >= CAPASITY) return false;
 		
-		passengerRoot = new PassengerNode(passenger, passengerRoot);
+		passenegers.add(passenger);
 		justBoarded ++;
-		onboard ++;
 		return true;
 	}
 	
 	private void arrivedAt(Station station) {
-		PassengerNode node = passengerRoot, prev = null;
-		
-		while(node != null) {
-			if(node.passenger.getDestination().equals(station)) {
-				if(prev == null) passengerRoot = node.next;
-				else prev.next = node.next;
-				
-				node.passenger.disembark(this);
-				onboard --;
+		for(Iterator<Passenger> iter = passenegers.iterator(); iter.hasNext();) {
+			Passenger passenger = iter.next();
+			if(passenger.getDestination().equals(station)) {
+				iter.remove();
+				passenger.disembark(this);
 			}
-			
-			prev = node;
-			node = node.next;
 		}
 		
 		station.trainArrive(this);
 	}
 	
-	public int getPassengerCount() { return onboard; }
+	public int getPassengerCount() { return passenegers.size(); }
 	public int getJustBoarded() { return justBoarded; }
 	
 	public int getLocation() { return location; }
 	public boolean isInbound() { return inbound; }
 	public String toString() { return "Train #" + id; }
-	
-	private static class PassengerNode {
-		private Passenger passenger;
-		private PassengerNode next;
-		
-		public PassengerNode(Passenger passenger, PassengerNode next) {
-			this.passenger = passenger;
-			this.next = next;
-		}
-	}
 }
